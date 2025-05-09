@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor Financeiro de Dívidas</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-text-color: #e0e0e0;
+            --secondary-text-color: #b3b3b3;
+            --accent-color: #007bff; /* Um azul para destaque */
+            --accent-hover-color: #0056b3;
+            --border-color: #333;
+            --success-color: #28a745;
+            --pending-color: #ffc107;
+            --danger-color: #dc3545;
+            --shadow-color: rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-text-color);
+            line-height: 1.6;
+            padding-bottom: 70px; /* Para o footer não sobrepor conteúdo */
+        }
+
+        header {
+            background-color: var(--surface-color);
+            color: var(--accent-color);
+            padding: 1.5rem 0;
+            text-align: center;
+            border-bottom: 2px solid var(--border-color);
+            box-shadow: 0 2px 10px var(--shadow-color);
+        }
+
+        header h1 {
+            font-size: 2.2rem;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 15px;
+            display: grid;
+            gap: 20px;
+            grid-template-columns: 1fr; /* Default para mobile */
+        }
+
+        /* Grid para telas maiores */
+        @media (min-width: 992px) {
+            main {
+                grid-template-columns: 1fr 2fr; /* Coluna para cadastro/resumo, coluna para lista */
+                grid-template-areas:
+                    "cadastro dashboard"
+                    "cadastro list"
+                    "cadastro list";
+            }
+            #cadastro-section { grid-area: cadastro; }
+            #dashboard-section { grid-area: dashboard; }
+            #debtor-list-section { grid-area: list; }
+        }
+
+
+        .card {
+            background-color: var(--surface-color);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .card h2 {
+            color: var(--accent-color);
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            font-size: 1.5rem;
+        }
+        .card h3 {
+            color: var(--primary-text-color);
+            font-size: 1.3rem;
+        }
+        .card h4 {
+            color: var(--secondary-text-color);
+            margin-top: 15px;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+
+
+        #debtForm div {
+            margin-bottom: 15px;
+        }
+
+        #debtForm label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--secondary-text-color);
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        #debtForm input[type="text"],
+        #debtForm input[type="number"],
+        #debtForm input[type="date"],
+        #debtForm select {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--bg-color);
+            color: var(--primary-text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        #debtForm input:focus,
+        #debtForm select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+        button, .button {
+            background-color: var(--accent-color);
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            margin-top: 5px; /* Espaçamento para botões */
+        }
+
+        button:hover, .button:hover {
+            background-color: var(--accent-hover-color);
+        }
+
+        button.pay-button.paid {
+            background-color: var(--success-color);
+            cursor: not-allowed;
+        }
+        button.pay-button.pending {
+            background-color: var(--pending-color);
+            color: #333;
+        }
+        button.pay-button.pending:hover {
+            background-color: #e0a800;
+        }
+        button.delete-debtor {
+            background-color: var(--danger-color);
+            margin-top: 15px; /* Maior espaçamento */
+        }
+        button.delete-debtor:hover {
+            background-color: #c82333;
+        }
+
+
+        #summary-metrics p {
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        #summary-metrics strong {
+            color: var(--accent-color);
+        }
+        #summary-metrics label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--secondary-text-color);
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        #summary-metrics #cashOnHand {
+            width: auto;
+            padding: 8px;
+            /* margin-left: 10px; */
+            background-color: var(--bg-color);
+            color: var(--primary-text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-top: 5px;
+            display: block; /* Para ocupar a linha */
+            max-width: 200px; /* Limitar largura */
+        }
+
+        #chart-container {
+            position: relative;
+            height: auto;
+            min-height: 280px; /* Ajustado para caber melhor */
+            max-height: 350px;
+        }
+
+        #debtorListContainer .debtor-card {
+            margin-bottom: 20px;
+            border-left: 5px solid var(--accent-color);
+        }
+
+        .debtor-card p {
+            margin: 8px 0;
+            color: var(--secondary-text-color);
+            font-size: 0.95rem;
+        }
+
+        .payment-slip {
+            margin-top: 15px;
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.9rem;
+        }
+
+        .payment-slip th, .payment-slip td {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            text-align: left;
+        }
+
+        .payment-slip th {
+            background-color: #2a2a2a;
+            color: var(--accent-color);
+            font-size: 0.85rem;
+        }
+
+        .payment-slip .status-paid {
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        .payment-slip .status-pending {
+            color: var(--pending-color);
+            font-weight: bold;
+        }
+
+        #upcomingPaymentsList {
+            list-style: none;
+            padding-left: 0;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        #upcomingPaymentsList li {
+            background-color: #2a2a2a;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 3px solid var(--pending-color);
+            font-size: 0.9rem;
+        }
+        #upcomingPaymentsList li strong {
+            color: var(--primary-text-color);
+        }
+        #upcomingPaymentsList li small{
+            display: block;
+            color: var(--secondary-text-color);
+            font-size: 0.8rem;
+        }
+
+
+        footer {
+            text-align: center;
+            padding: 1rem;
+            background-color: var(--surface-color);
+            color: var(--secondary-text-color);
+            border-top: 1px solid var(--border-color);
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            font-size: 0.9rem;
+            z-index: 1000;
+        }
+
+        /* Responsividade */
+        @media (max-width: 991px) { /* Ajuste do breakpoint */
+            #dashboard-section {
+                display: grid; /* Mudar para grid para melhor organização */
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            #chart-container {
+                order: 1; /* Gráfico primeiro */
+            }
+            #summary-metrics {
+                order: 2;
+            }
+            #payment-calendar-section {
+                order: 3;
+            }
+        }
+
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8rem;
+            }
+            main {
+                grid-template-columns: 1fr; /* Stack sections on smaller screens */
+                grid-template-areas:
+                    "cadastro"
+                    "dashboard"
+                    "list";
+                padding: 0 10px;
+            }
+
+            .card h2 { font-size: 1.3rem; }
+            .card h3 { font-size: 1.2rem; }
+
+            .payment-slip {
+                font-size: 0.8rem;
+            }
+            .payment-slip th, .payment-slip td {
+                padding: 6px 4px;
+            }
+            .payment-slip button {
+                padding: 6px 8px;
+                font-size: 0.8rem;
+            }
+            button, .button {
+                width: 100%;
+                margin-top: 10px;
+                padding: 12px 15px;
+            }
+            #debtForm button[type="submit"] {
+                width: 100%;
+            }
+            #summary-metrics #cashOnHand {
+                max-width: none; /* Permitir ocupar a largura */
+            }
+        }
+
+        @media (max-width: 480px) {
+            header h1 {
+                font-size: 1.6rem;
+            }
+            .card {
+                padding: 15px;
+            }
+            .card h2 { font-size: 1.2rem; }
+            #debtForm label { font-size: 0.85rem; }
+            #debtForm input, #debtForm select { font-size: 0.9rem; padding: 8px; }
+            .payment-slip { font-size: 0.75rem; }
+             .payment-slip th, .payment-slip td {
+                padding: 4px 3px;
+            }
+            .payment-slip button {
+                font-size: 0.7rem;
+                padding: 5px;
+            }
+            #upcomingPaymentsList li { font-size: 0.85rem; padding: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Gestor de Dívidas</h1>
+    </header>
+
+    <main>
+        <section id="cadastro-section" class="card">
+            <h2>Cadastrar Nova Dívida</h2>
+            <form id="debtForm">
+                <div>
+                    <label for="debtorName">Nome do Devedor:</label>
+                    <input type="text" id="debtorName" required>
+                </div>
+                <div>
+                    <label for="totalDebt">Valor Total da Dívida (R$):</label>
+                    <input type="number" id="totalDebt" step="0.01" min="0.01" required>
+                </div>
+                <div>
+                    <label for="totalInstallments">Nº Total de Parcelas:</label>
+                    <input type="number" id="totalInstallments" min="1" required>
+                </div>
+                <div>
+                    <label for="installmentsPaid">Parcelas Já Pagas:</label>
+                    <input type="number" id="installmentsPaid" min="0" value="0" required>
+                </div>
+                <div>
+                    <label for="firstPaymentDate">Data da Primeira Parcela:</label>
+                    <input type="date" id="firstPaymentDate" required>
+                </div>
+                <div>
+                    <label for="paymentFrequency">Frequência de Pagamento:</label>
+                    <select id="paymentFrequency">
+                        <option value="monthly" selected>Mensal</option>
+                        <option value="weekly">Semanal</option>
+                        <option value="bi-weekly">Quinzenal</option>
+                    </select>
+                </div>
+                <button type="submit">Adicionar Dívida</button>
+            </form>
+        </section>
+
+        <section id="dashboard-section">
+            <div id="chart-container" class="card">
+                <h2>Proporção Pago vs. Restante</h2>
+                <canvas id="debtChart"></canvas>
+            </div>
+
+            <div id="summary-metrics" class="card">
+                <h2>Resumo Geral</h2>
+                <p>Valor Total Já Pago: <strong id="totalPaidGlobal">R$ 0,00</strong></p>
+                <p>Valor Ainda a Pagar: <strong id="totalRemainingGlobal">R$ 0,00</strong></p>
+                <div>
+                    <label for="cashOnHand">Dinheiro em Caixa (para pagamentos):</label>
+                    <input type="number" id="cashOnHand" step="0.01" min="0" value="0">
+                </div>
+            </div>
+
+            <div id="payment-calendar-section" class="card">
+                <h2>Próximos Pagamentos</h2>
+                <ul id="upcomingPaymentsList">
+                    <!-- Pagamentos serão listados aqui -->
+                </ul>
+            </div>
+        </section>
+
+        <section id="debtor-list-section">
+            <h2>Dívidas Cadastradas</h2>
+            <div id="debtorListContainer">
+                <!-- Cards dos devedores serão inseridos aqui -->
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2023 Gestor de Dívidas. Todos os direitos reservados.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const debtForm = document.getElementById('debtForm');
+            const debtorListContainer = document.getElementById('debtorListContainer');
+            const totalPaidGlobalEl = document.getElementById('totalPaidGlobal');
+            const totalRemainingGlobalEl = document.getElementById('totalRemainingGlobal');
+            const cashOnHandInput = document.getElementById('cashOnHand');
+            const upcomingPaymentsListEl = document.getElementById('upcomingPaymentsList');
+
+            let debtors = JSON.parse(localStorage.getItem('debtorsV2')) || []; // Changed key to avoid conflicts with old versions
+            let cashOnHand = parseFloat(localStorage.getItem('cashOnHandV2')) || 0;
+            cashOnHandInput.value = cashOnHand.toFixed(2);
+
+            let debtChart; // Chart.js instance
+
+            // --- Chart.js Setup ---
+            function initChart() {
+                const ctx = document.getElementById('debtChart').getContext('2d');
+                debtChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Valor Pago', 'Valor Restante'],
+                        datasets: [{
+                            label: 'Distribuição da Dívida',
+                            data: [0, 0], // Initial data
+                            backgroundColor: [
+                                'rgba(40, 167, 69, 0.8)', // --success-color
+                                'rgba(255, 193, 7, 0.8)'  // --pending-color
+                            ],
+                            borderColor: [
+                                'rgba(40, 167, 69, 1)',
+                                'rgba(255, 193, 7, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    color: 'var(--primary-text-color)',
+                                    boxWidth: 20,
+                                    padding: 15
+                                }
+                            },
+                            title: {
+                                display: false,
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed !== null) {
+                                            label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function updateChart(paid, remaining) {
+                if (debtChart) {
+                    debtChart.data.datasets[0].data = [paid, remaining];
+                    debtChart.update();
+                }
+            }
+
+            // --- Core Functions ---
+            function saveData() {
+                localStorage.setItem('debtorsV2', JSON.stringify(debtors));
+                localStorage.setItem('cashOnHandV2', cashOnHand.toString());
+            }
+
+            function calculateInstallmentAmount(totalDebt, totalInstallments) {
+                return totalDebt > 0 && totalInstallments > 0 ? (totalDebt / totalInstallments) : 0;
+            }
+
+            function getPaymentDate(firstPaymentDateStr, frequency, installmentIndex) {
+                // Ensure the date string is in YYYY-MM-DD format for consistency
+                const parts = firstPaymentDateStr.split('-');
+                const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2])); // Use UTC to avoid timezone shifts
+
+                if (isNaN(date.getTime())) return null;
+
+                switch (frequency) {
+                    case 'monthly':
+                        date.setUTCMonth(date.getUTCMonth() + installmentIndex);
+                        break;
+                    case 'weekly':
+                        date.setUTCDate(date.getUTCDate() + (installmentIndex * 7));
+                        break;
+                    case 'bi-weekly':
+                        date.setUTCDate(date.getUTCDate() + (installmentIndex * 14));
+                        break;
+                }
+                return date;
+            }
+
+            function formatDate(date) {
+                if (!date || isNaN(date.getTime())) return 'N/A';
+                return date.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+            }
+
+
+            function renderDebtors() {
+                debtorListContainer.innerHTML = '';
+                if (debtors.length === 0) {
+                    debtorListContainer.innerHTML = '<p class="card" style="text-align:center; color:var(--secondary-text-color);">Nenhuma dívida cadastrada.</p>';
+                }
+
+                debtors.sort((a,b) => a.name.localeCompare(b.name)); // Sort debtors by name
+
+                debtors.forEach((debtor, index) => {
+                    const card = document.createElement('div');
+                    card.classList.add('debtor-card', 'card');
+                    card.dataset.debtorId = debtor.id;
+
+                    const installmentAmount = calculateInstallmentAmount(debtor.totalDebt, debtor.totalInstallments);
+                    const amountPaid = installmentAmount * debtor.installmentsPaid;
+                    const amountRemaining = debtor.totalDebt - amountPaid;
+                    const firstPaymentDateObj = new Date(Date.UTC(
+                        debtor.firstPaymentDate.substring(0,4),
+                        parseInt(debtor.firstPaymentDate.substring(5,7)) -1,
+                        debtor.firstPaymentDate.substring(8,10)
+                    ));
+
+
+                    card.innerHTML = `
+                        <h3>${debtor.name}</h3>
+                        <p>Valor Total: R$ ${debtor.totalDebt.toFixed(2)}</p>
+                        <p>Total de Parcelas: ${debtor.totalInstallments}</p>
+                        <p>Parcelas Pagas: ${debtor.installmentsPaid}</p>
+                        <p>Valor por Parcela: R$ ${installmentAmount.toFixed(2)}</p>
+                        <p>Total Pago: R$ ${amountPaid.toFixed(2)}</p>
+                        <p>Total Restante: R$ ${amountRemaining.toFixed(2)}</p>
+                        <p>Primeiro Pagamento: ${formatDate(firstPaymentDateObj)}</p>
+                        <p>Frequência: ${debtor.paymentFrequency === 'monthly' ? 'Mensal' : debtor.paymentFrequency === 'weekly' ? 'Semanal' : 'Quinzenal'}</p>
+                        <h4>Talão de Pagamentos</h4>
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            <table class="payment-slip">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Valor</th>
+                                        <th>Data</th>
+                                        <th>Status</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${generatePaymentSlipRows(debtor, index, installmentAmount)}
+                                </tbody>
+                            </table>
+                        </div>
+                        <button class="delete-debtor" data-index="${index}">Excluir Dívida</button>
+                    `;
+                    debtorListContainer.appendChild(card);
+                });
+                addPaymentButtonListeners();
+                addDeleteButtonListeners();
+                updateSummaryAndCalendar();
+            }
+
+            function generatePaymentSlipRows(debtor, debtorIndex, installmentAmount) {
+                let rows = '';
+                for (let i = 1; i <= debtor.totalInstallments; i++) {
+                    const isPaid = i <= debtor.installmentsPaid;
+                    const paymentDate = getPaymentDate(debtor.firstPaymentDate, debtor.paymentFrequency, i - 1);
+
+                    rows += `
+                        <tr>
+                            <td>${i}</td>
+                            <td>R$ ${installmentAmount.toFixed(2)}</td>
+                            <td>${formatDate(paymentDate)}</td>
+                            <td class="status-${isPaid ? 'paid' : 'pending'}">${isPaid ? 'Pago' : 'Pendente'}</td>
+                            <td>
+                                ${!isPaid ? `<button class="pay-button pending" data-debtor-index="${debtorIndex}" data-installment-number="${i}">Pagar</button>` : 'OK'}
+                            </td>
+                        </tr>
+                    `;
+                }
+                return rows;
+            }
+
+            function addPaymentButtonListeners() {
+                document.querySelectorAll('.pay-button.pending').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const debtorIndex = parseInt(e.target.dataset.debtorIndex);
+                        const installmentNumber = parseInt(e.target.dataset.installmentNumber);
+                        markAsPaid(debtorIndex, installmentNumber);
+                    });
+                });
+            }
+
+            function addDeleteButtonListeners() {
+                document.querySelectorAll('.delete-debtor').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const debtorIndex = parseInt(e.target.dataset.index);
+                        if (confirm(`Tem certeza que deseja excluir a dívida de ${debtors[debtorIndex].name}? Esta ação não pode ser desfeita.`)) {
+                            debtors.splice(debtorIndex, 1);
+                            saveData();
+                            renderDebtors();
+                        }
+                    });
+                });
+            }
+
+            function markAsPaid(debtorIndex, installmentNumberToMark) {
+                const debtor = debtors[debtorIndex];
+                if (installmentNumberToMark === debtor.installmentsPaid + 1) {
+                    debtor.installmentsPaid = installmentNumberToMark;
+                    saveData();
+                    renderDebtors();
+                } else if (installmentNumberToMark <= debtor.installmentsPaid) {
+                    alert("Esta parcela já está marcada como paga.");
+                } else {
+                    alert("Por favor, pague as parcelas em ordem sequencial.");
+                }
+            }
+
+            function updateSummaryAndCalendar() {
+                let totalPaidGlobally = 0;
+                let totalDebtGlobally = 0;
+
+                debtors.forEach(debtor => {
+                    const installmentAmount = calculateInstallmentAmount(debtor.totalDebt, debtor.totalInstallments);
+                    totalPaidGlobally += installmentAmount * debtor.installmentsPaid;
+                    totalDebtGlobally += debtor.totalDebt;
+                });
+
+                const totalRemainingGlobally = totalDebtGlobally - totalPaidGlobally;
+
+                totalPaidGlobalEl.textContent = `R$ ${totalPaidGlobally.toFixed(2)}`;
+                totalRemainingGlobalEl.textContent = `R$ ${totalRemainingGlobally.toFixed(2)}`;
+
+                updateChart(totalPaidGlobally, totalRemainingGlobally > 0 ? totalRemainingGlobally : 0);
+                renderPaymentCalendar();
+            }
+
+            function renderPaymentCalendar() {
+                upcomingPaymentsListEl.innerHTML = '';
+                const upcoming = [];
+                const today = new Date();
+                today.setUTCHours(0,0,0,0); // Compare dates only, ignoring time
+
+                debtors.forEach(debtor => {
+                    const installmentAmount = calculateInstallmentAmount(debtor.totalDebt, debtor.totalInstallments);
+                    for (let i = debtor.installmentsPaid + 1; i <= debtor.totalInstallments; i++) {
+                        const paymentDate = getPaymentDate(debtor.firstPaymentDate, debtor.paymentFrequency, i - 1);
+                        if (paymentDate && paymentDate.getTime() >= today.getTime()) {
+                            upcoming.push({
+                                date: paymentDate,
+                                name: `${debtor.name} - Parcela ${i}`,
+                                amount: installmentAmount
+                            });
+                        }
+                    }
+                });
+
+                upcoming.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+                const maxCalendarItems = 7; // Show a few more items
+                upcoming.slice(0, maxCalendarItems).forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>${formatDate(item.date)}</strong>: ${item.name} - R$ ${item.amount.toFixed(2)}`;
+                    upcomingPaymentsListEl.appendChild(li);
+                });
+
+                if (upcoming.length === 0 && debtors.length > 0) {
+                    upcomingPaymentsListEl.innerHTML = '<li>Todas as parcelas futuras foram pagas ou não há pagamentos pendentes próximos.</li>';
+                } else if (debtors.length === 0) {
+                     upcomingPaymentsListEl.innerHTML = '<li>Nenhum pagamento futuro. Cadastre uma dívida.</li>';
+                }
+            }
+
+
+            // --- Event Listeners ---
+            debtForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const debtorName = document.getElementById('debtorName').value.trim();
+                const totalDebt = parseFloat(document.getElementById('totalDebt').value);
+                const totalInstallments = parseInt(document.getElementById('totalInstallments').value);
+                const installmentsPaid = parseInt(document.getElementById('installmentsPaid').value);
+                const firstPaymentDateRaw = document.getElementById('firstPaymentDate').value; // YYYY-MM-DD
+                const paymentFrequency = document.getElementById('paymentFrequency').value;
+
+                if (!debtorName) {
+                    alert("O nome do devedor é obrigatório.");
+                    return;
+                }
+                if (isNaN(totalDebt) || totalDebt <= 0) {
+                    alert("O valor total da dívida deve ser um número positivo.");
+                    return;
+                }
+                if (isNaN(totalInstallments) || totalInstallments < 1) {
+                    alert("O número total de parcelas deve ser pelo menos 1.");
+                    return;
+                }
+                if (isNaN(installmentsPaid) || installmentsPaid < 0) {
+                    alert("O número de parcelas pagas não pode ser negativo.");
+                    return;
+                }
+                if (installmentsPaid > totalInstallments) {
+                    alert("Número de parcelas pagas não pode ser maior que o total de parcelas.");
+                    return;
+                }
+                if (!firstPaymentDateRaw) {
+                    alert("Por favor, selecione a data da primeira parcela.");
+                    return;
+                }
+                // Basic validation for date format (HTML5 input type=date should handle most of this)
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(firstPaymentDateRaw)) {
+                    alert("Formato de data inválido para a primeira parcela. Use YYYY-MM-DD.");
+                    return;
+                }
+
+
+                const newDebtor = {
+                    id: Date.now().toString() + Math.random().toString(36).substring(2,7), // More unique ID
+                    name: debtorName,
+                    totalDebt: totalDebt,
+                    totalInstallments: totalInstallments,
+                    installmentsPaid: installmentsPaid,
+                    firstPaymentDate: firstPaymentDateRaw, // Store as YYYY-MM-DD string
+                    paymentFrequency: paymentFrequency
+                };
+
+                debtors.push(newDebtor);
+                saveData();
+                renderDebtors();
+                debtForm.reset();
+                document.getElementById('installmentsPaid').value = 0;
+                document.getElementById('debtorName').focus(); // Focus back on the first field
+            });
+
+            cashOnHandInput.addEventListener('change', (e) => {
+                let newCashOnHand = parseFloat(e.target.value);
+                if (isNaN(newCashOnHand) || newCashOnHand < 0) {
+                    newCashOnHand = 0;
+                }
+                cashOnHand = newCashOnHand;
+                e.target.value = cashOnHand.toFixed(2);
+                saveData();
+            });
+
+            cashOnHandInput.addEventListener('input', (e) => { // Update dynamically as user types (optional)
+                 let value = e.target.value;
+                 // Allow only numbers and one decimal point
+                 value = value.replace(/[^0-9.]/g, '');
+                 const parts = value.split('.');
+                 if (parts.length > 2) {
+                     value = parts[0] + '.' + parts.slice(1).join('');
+                 }
+                 e.target.value = value;
+            });
+
+
+            // --- Initial Load ---
+            initChart();
+            renderDebtors(); // This will also call updateSummaryAndCalendar
+        });
+    </script>
+</body>
+</html>
